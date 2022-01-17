@@ -1,0 +1,8 @@
+eth/node_modules
+eth/cache
+eth/artifacts
+eth/.env
+
+web/node_modules
+web/.env
+web/.next
