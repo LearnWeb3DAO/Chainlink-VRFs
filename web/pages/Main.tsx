@@ -8,7 +8,7 @@ const Main = () => {
   // True if waiting for a transaction to be mined, false otherwise.
   const [loading, setLoading] = useState(false);
 
-  const [sentRandomness, setSentRandomness] = useState(false);
+  const [waitingForRandomness, setWaitingForRandomness] = useState(false);
 
   // True if user has connected their wallet, false otherwise
   const [walletConnected, setWalletConnected] = useState(false);
@@ -81,6 +81,7 @@ const Main = () => {
       setLoading(true);
       const minedTxn = await txn.wait();
       console.log({ minedTxn });
+      setWaitingForRandomness(true);
       listenForEvents();
     } catch (error: any) {
       console.error(error);
@@ -95,13 +96,11 @@ const Main = () => {
     const contract = getContractInstance(provider);
     contract.on("RequestedRandomness", (requestId: any) => {
       alert("Requested randomness");
-      setSentRandomness(true);
     });
     contract.on("FlipResult", (_flipId: BigNumber, _flipResult: number) => {
-      alert("flip result aagya");
+      setWaitingForRandomness(false);
       const flipId = parseInt(BigNumber.from(_flipId).toString());
       const flipResult = _flipResult;
-      setSentRandomness(false);
       setFlipId(flipId);
       setFlipResult(flipResult);
     });
@@ -118,12 +117,18 @@ const Main = () => {
           </p>
         </div>
       )}
-      {sentRandomness && (
-        <p>Request to chainlink for randomness has been sent</p>
+      {waitingForRandomness && (
+        <p>
+          Waiting for Chainlink to send the randomness... (This can take a few
+          seconds)
+        </p>
       )}
-      <button onClick={flipBtnHandler} disabled={loading}>
-        {loading ? "Loading..." : "Flip"}
-      </button>
+
+      {!waitingForRandomness && (
+        <button onClick={flipBtnHandler} disabled={loading}>
+          {loading ? "Loading..." : "Flip"}
+        </button>
+      )}
     </div>
   );
 };
