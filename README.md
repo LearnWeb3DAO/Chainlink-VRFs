@@ -2,634 +2,454 @@
 
 ## Introduction
 
-When dealing with computers, randomness is an important but difficult issue to handle due to a computer's deterministic nature. This is true even more so when speaking of blockchain because not only is the computer deterministic, but it is also transparent. As a result, trusted random numbers cannot be generated natively in Solidity: if each node came up with their own random number they would not be sure whose random number to use when they went to reach consensus.
+When dealing with computers, randomness is an important but difficult issue to handle due to a computer's deterministic nature.This is true even more so when speaking of blockchain because not only is the computer deterministic, but it is also transparent. As a result, trusted random numbers cannot be generated natively in Solidity because randomness will be calculated on-chain which is public info to all the miners and the users.
 
-We could solve this by looking outside of the blockchain to get a random number but then this introduces a central point of failure and forces users/developers to have trust in this centralized source of randomness.
+So we can use some web2 technologies to generate the randomness and then use them on-chain.
 
-This brings us to Chainlink VRFs which can help us produce a provably random number and have that randomness credibly verified on the blockchain.
+## What is an oracle?
+
+An oracle sends data from the outside world to a blockchain.Smart contract on the blockchain can then use this data to make a decision.So they are just third-party services that provide smart contracts with external data.They act as bridges between blockchains and the external world.
+However it is important to note that the blockchain oracle is not itself the data source but its job is to query, verify and authenticate the outside data and then futher pass it to the smart contract.
+
+Today we will learn about one of oracles named Chainlink VRF's
+
+Lets goo 🚀
+
+## Intro
+
+Chainlink VRF's are oracles which used to generate random values. These values are verified using cryptographic proofs.These proofs prove that the results werent tampered or manipulated by oracle operators, users, miners etc.Proofs are then published on-chain so that they can be verified, after there verification is successful they are used by other smart contracts which requested randomness.
 
 The official Chainlink Docs describe VRFs as:
 
 > Chainlink VRF (Verifiable Random Function) is a provably-fair and verifiable source of randomness designed for smart contracts. Smart contract developers can use Chainlink VRF as a tamper-proof random number generator (RNG) to build reliable smart contracts for any applications which rely on unpredictable outcomes.
 
-## When is it needed?
+## How does it work?
 
-It can/should be used any time you want provably-fair randomness.
+- Chainlink has two contracts that we are mostly concerned about [VRFConsumerBase.sol](https://github.com/smartcontractkit/chainlink/blob/master/contracts/src/v0.8/VRFConsumerBase.sol) and VRFCoordinator
+- VRFConsumerBase is the contract that will be finally calling the VRF Coordinator which is mostly reponsible for publishing the randomness
+- We will be inheriting VRFConsumerBase from which we will be using two functions:
+  - requestRandomness, which makes the initial request for randomness.
+  - fulfillRandomness, which is the function that receives and does something with verified randomness.
 
-Imagine if there were a coin-toss on a website. How do you ensure that it isn't rigged?
-It would definitely help to have this state on the blockchain, completely verifiable.
-And that's what we'll be building in this lesson! :)
+![](https://i.imgur.com/ssQTlkc.png)
+
+If you look at the diagram you can understand the flow, `RandomNFTWinner` contract will inherit the `VRFConsumerBase` contract and will call the `requestRandomness` function within the `VRFConsumerBase`. On calling that function the request to randomness starts and the `VRFConsumerBase` further calls the `VRFCoordinator` contract which is reponsible for getting the randomness back from the external world. After the `VRFCoordinator` has the randomness it calls the `fullFillRandomness` function within the `VRFConsumerBase` which further then selects the winner.
+**Note the important part is that eventhough you called the `requestRandomness` function you get the randomness back in the `fullFillRandomness` function**
+
+## Prerequisites
+
+- You have completed [Hardhat Verification](https://github.com/LearnWeb3DAO/hardhat-verification) module
+- You have completed the Layer 2 tutorials
+
+## Requirements
+
+- We will build a lottery game today
+- Each game will have a max number of players and an entry fee
+- After max number of players have entered the game,one winner is chosen at randomly
+- The winner will get `maxplayers*entryfee` amount of ether for winning the game
 
 ## BUIDL IT
 
-### What will we be building?
+To build the smart contract we would be using [Hardhat](https://hardhat.org/). Hardhat is an Ethereum development environment and framework designed for full stack development in Solidity. In simple words you can write your smart contract, deploy them, run tests, and debug your code.
 
-A full-stack dApp that users can use to do a coin-flip, with the result coming in from Chainlink VRFs, ie, verifiable.
+- To setup a Hardhat project, Open up a terminal and execute these commands
 
-### Setting up the folder structure
+  ```bash
+  mkdir hardhat-tutorial
+  cd hardhat-tutorial
+  npm init --yes
+  npm install --save-dev hardhat
+  ```
 
-Create a new folder for this dApp and setup the two folders inside of it
+- In the same directory where you installed Hardhat run:
 
-```
-mkdir coin-flip && cd coin-flip
-mkdir eth
-mkdir web
-```
+  ```bash
+  npx hardhat
+  ```
 
-### Setup a new Hardhat project
+  - Select `Create a basic sample project`
+  - Press enter for the already specified `Hardhat Project root`
+  - Press enter for the question on if you want to add a `.gitignore`
+  - Press enter for `Do you want to install this sample project's dependencies with npm (@nomiclabs/hardhat-waffle ethereum-waffle chai @nomiclabs/hardhat-ethers ethers)?`
 
-We'll work on `web` later.
-For now, switch inside the eth directory, and setup a new Hardhat boilerplate
+Now you have a hardhat project ready to go!
 
-```
-cd eth
-npm init --y
-npx hardhat
-```
+If you are not on mac, please do this extra step and install these libraries as well :)
 
-This will ask you a few questions to setup the new project. You must be familiar to this by now.
-
-I've chosen a basic Hardhat sample project.
-
-### Writing the contract
-
-Let's `cd` into `contracts` and start a new contract `CoinFlip.sol`:
-
-```
-//SPDX-License-Identifier: Unlicense
-pragma solidity ^0.8.0;
-
-contract CoinFlip {
-
-}
+```bash
+npm install --save-dev @nomiclabs/hardhat-waffle ethereum-waffle chai @nomiclabs/hardhat-ethers ethers
 ```
 
-Let's think about what we'll be needing to setup the most basic coin-flip, without thinking about VRFs:
+and press `enter` for all the questions.
 
-- an incrementing counter keeping track of `gameId`
-- a mappping `FlipResults` that stores the result for a particular `gameId`
-- an event `FlipResult` to be emitted after a flip has been successful
+- In the same terminal now install `@openzeppelin/contracts` as we would be importing Openzeppelin's Contracts
 
-Let's jump into coding it up now:
+  ```bash
+  npm install @openzeppelin/contracts
+  ```
 
-```
-//SPDX-License-Identifier: Unlicense
-pragma solidity ^0.8.0;
+- We will also be verifying our contracts, so lets install hardhat etherscan library
 
-contract CoinFlip {
-    enum EFlipResult {
-        Heads,
-        Tails
-    }
-
-    uint256 gameId = 0;
-
-    mapping (uint256 => EFlipResult) public flipResults;
-
-    event FlipResult(uint256 gameId, EFlipResult flipResult);
-
-    function flip() public {
-        gameId++;
-        uint256 coin = uint256(block.timestamp) % 2;
-        if (coin == 0) {
-            flipResults[gameId] = EFlipResult.Heads;
-        } else {
-            flipResults[gameId] = EFlipResult.Tails;
-        }
-        emit FlipResult(gameId, flipResults[gameId]);
-    }
-}
+```bash
+npm install --save-dev @nomiclabs/hardhat-etherscan
 ```
 
-Looking at it, line by line:
+- Lastly we will install the chainlink contracts, to use Chainlink VRF
 
-- We first init an `enum EFlipResult` because a flip result can only be `Heads` or `Tails`; in this case, 0 will represent `Heads`, and 1 will represent `Tails`
-- We initialise `gameId` as 0, a mapping of `gameId => FlipResult`, and an event to be emitted on a successful flip.
-- Getting to the main function `flip()` now:
-  - We increment the gameId
-  - Calculate randomness using the current block's timestamp
-  - Mod it by 2 => result can only be 0 or 1
-  - Emit it as the result of this coin flip
-
-**_WAAIT, hold on. Calculate randomness? How did you do that? I thought that wasn't possible in Solidity?_**
-
-Well, that's right. This isn't a secure way of calculating randomness since it depends on the timestamp, which can be, given a lot of thought and effort, rigged -- a user a calculate his timing and rig his result.
-There are more ways to calculate randomness in Solidity, out of which, some might be more secure than the other, but none is truly verifiably secure.
-
-### In comes Chainlink VRF.
-
-> Chainlink VRF enables smart contracts to access randomness without compromising on security or usability. With every new request for randomness, Chainlink VRF generates a random number and cryptographic proof of how that number was determined. The proof is published and verified on-chain before it can be used by any consuming applications. This process ensures that the results cannot be tampered with nor manipulated by anyone, including oracle operators, miners, users and even smart contract developers.
-
-This means than the randomness in this case is fetched by Chainlink from outside the EVM, and then the result, along with the proof, is published to the chain which we can then use.
-How cool!
-
-Let's look at it in action to find randomness for our project.
-
-### Editing the contract
-
-Chainlink VRF follows the [Request & Receive Data cycle](https://docs.chain.link/docs/request-and-receive-data/).
-To consume randomness, your contract should inherit from VRFConsumerBase and define two required functions:
-
-- `requestRandomness`, which makes the initial request for randomness to Chainlink.
-- `fulfillRandomness`, which is the function that receives and does something with verified randomness from Chainlink.
-
-We'll first import the VRF contract and inherit it:
-`yarn add @chainlink/contracts`
-
+```bash
+npm install --save @chainlink/contracts
 ```
-//SPDX-License-Identifier: Unlicense
-pragma solidity ^0.8.0;
 
+- Now create a new file inside the `contracts` directory called `RandomeWinnerGame.sol`.
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.4;
+
+import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/Strings.sol";
 import "@chainlink/contracts/src/v0.8/VRFConsumerBase.sol";
 
-contract CoinFlip is VRFConsumerBase {
-    enum EFlipResult {
-        Heads,
-        Tails
-    }
+contract RandomWinnerGame is VRFConsumerBase, Ownable {
 
-    uint256 gameId = 0;
+    //Chainlink variables
+    // The amount of LINK to send with the request
+    uint256 public fee;
+    // ID of public key against which randomness is generated
+    bytes32 public keyHash;
 
-    mapping (uint256 => EFlipResult) public flipResults;
+    // Address of the players
+    address[] public players;
+    //Max number of players in one game
+    uint8 maxPlayers;
+    // Variable to indicate if the game has started or not
+    bool gameStarted;
+    // the fees for entering the game
+    uint256 entryFee;
 
-    event FlipResult(uint256 gameId, EFlipResult flipResult);
+    // emitted when the game ends
+    event GameEnded(address winner,bytes32 requestId);
+    // emitted when the game starts
+    event GameStarted(uint8 maxPlayers, uint256 entryFee);
 
-    function flip() public {
-        gameId++;
-        uint256 coin = uint256(block.timestamp) % 2;
-        if (coin == 0) {
-            flipResults[gameId] = EFlipResult.Heads;
-        } else {
-            flipResults[gameId] = EFlipResult.Tails;
-        }
-        emit FlipResult(gameId, flipResults[gameId]);
-    }
-}
-```
-
-**NOTE:** we now have to initialise the contructor:
-
-```
-constructor(
-        address vrfCoordinator,
-        address linkToken,
-        bytes32 vrfKeyHash,
-        uint256 vrfFee
-    )
-        VRFConsumerBase(
-            vrfCoordinator,
-            linkToken
-        )
-    {
+   /**
+   * constructor inherits a VRFConsumerBase and initiates the values for keyHash, fee and gameStarted
+   * @param vrfCoordinator address of VRFCoordinator contract
+   * @param linkToken address of LINK token contract
+   * @param vrfFee the amount of LINK to send with the request
+   * @param vrfKeyHash ID of public key against which randomness is generated
+   */
+    constructor(address vrfCoordinator, address linkToken,
+    bytes32 vrfKeyHash, uint256 vrfFee)
+    VRFConsumerBase(vrfCoordinator, linkToken) {
         keyHash = vrfKeyHash;
         fee = vrfFee;
-    }
-```
-
-_WAAIT, what's this stuff now and how did we find these values??_
-
-Chainlink defines these as:
-
-> **LINK Token** - LINK token address on the corresponding network (Ethereum, Polygon, BSC, etc)
-> **VRF Coordinator** - address of the Chainlink VRF Coordinator
-> **Key Hash** - public key against which randomness is generated
-> **Fee** - fee required to fulfill a VRF request
-
-You can find these values here: (I'll be using the values for Kovan at the time of deployment)
-[https://docs.chain.link/docs/vrf-contracts](https://docs.chain.link/docs/vrf-contracts)
-
-However, we'll need to add `keyHash` and `fee` as variables of the contract:
-
-```
-    uint256 public fee;
-    bytes32 public keyHash;
-```
-
-Now, the only part we're left with are to setup the randomness functions:
-
-```
-/**
-* Requests randomness
-*/
-function getRandomNumber() public returns (bytes32 requestId) {
-    require(LINK.balanceOf(address(this)) >= fee, "Not enough LINK - fill contract with faucet");
-    return requestRandomness(keyHash, fee);
-}
-
-/**
-* Callback function used by VRF Coordinator
-*/
-function fulfillRandomness(bytes32 requestId, uint256 randomness) internal override {
-    uint256 randomResult = randomness;
-}
-```
-
-_Why do we have two functions, instead of just one?_
-Remember we discussed Chainlinkk uses [Request & Receive Data cycle](https://docs.chain.link/docs/request-and-receive-data/) where we send it the request to `requestRandomness()` and we receive the response, as a callback, in `fulfillRandomness()`.
-
-This is what Chainlink gives us by default.
-Let's tweak it for our contract, and things should look like this now:
-
-```
-function flip() public returns (bytes32) {
-        gameId++;
-        bytes32 requestId = getRandomNumber();
-        gameIds[requestId] = gameId;
-        emit RequestedRandomness(requestId);
-        return requestId;
+        gameStarted = false;
     }
 
     /**
-    * Requests randomness
+    * startGame starts the game by setting appropriate values for all the variables
     */
-    function getRandomNumber() public returns (bytes32 requestId) {
-        require(LINK.balanceOf(address(this)) >= fee, "Not enough LINK - fill contract with faucet");
+    function startGame(uint8 _maxPlayers, uint256 _entryFee) public onlyOwner {
+        // Check if there is a game already running
+        require(!gameStarted, "Game is currently running");
+        // empty the players array
+        delete players;
+        // set the max players for this game
+        maxPlayers = _maxPlayers;
+        // set the game started to true
+        gameStarted = true;
+        // setup the entryFee for the game
+        entryFee = _entryFee;
+        emit GameStarted(maxPlayers, entryFee);
+    }
+
+    /**
+    joinGame is called when a player wants to enter the game
+     */
+    function joinGame() public payable {
+        // Check if a game is already running
+        require(gameStarted, "Game has not been started yet");
+        // Check if the value sent by the user matches the entryFee
+        require(msg.value == entryFee, "Value sent is not equal to entryFee");
+        // Check if there is still some space left in the game to add another player
+        require(players.length < maxPlayers, "Game is full");
+        // add the sender to the players list
+        players.push(msg.sender);
+        // If the list is full start the winner selection process
+        if(players.length == maxPlayers) {
+            getRandomWinner();
+        }
+    }
+
+    /**
+    * fulfillRandomness is called by VRFCoordinator when it receives a valid VRF proof.
+    * This function is overrided to act upon the random number generated by Chainlink VRF.
+    * @param requestId  this ID is unique for the request we sent to the VRF Coordinator
+    * @param randomness this is a random unit256 generated and returned to us by the VRF Coordinator
+   */
+    function fulfillRandomness(bytes32 requestId, uint256 randomness) internal virtual override  {
+        // We want out winnerIndex to be in the length from 0 to players.length-1
+        // For this we mod it with the player.length value
+        uint256 winnerIndex = randomness % players.length;
+        // get the address of the winner from the players array
+        address winner = players[winnerIndex];
+        // send the ether in the contract to the winner
+        (bool sent,) = winner.call{value: address(this).balance}("");
+        require(sent, "Failed to send Ether");
+        // Emit that the game has ended
+        emit GameEnded(winner,requestId);
+        // set the gameStarted variable to false
+        gameStarted = false;
+    }
+
+    /**
+    * getRandomWinner is called to start the process of selecting a random winner
+    */
+    function getRandomWinner() public returns (bytes32 requestId) {
+        // LINK is an internal interface for Link token found within the VRFConsumerBase
+        // Here we use the balanceOF method from that interface to make sure that our
+        // contract has enough link so that we can request the VRFCoordinator for randomness
+        require(LINK.balanceOf(address(this)) >= fee, "Not enough LINK");
+        // Make a request to the VRF coordinator.
+        // requestRandomness is a function within the VRFConsumerBase
+        // it starts the process of randomness generation
         return requestRandomness(keyHash, fee);
     }
 
-    /**
-    * Callback function used by VRF Coordinator
-    */
-    function fulfillRandomness(bytes32 requestId, uint256 randomness) internal virtual override {
-        uint256 _gameId = gameIds[requestId];
-        uint256 result = randomness % 2;
-        result == 0
-        ? flipResults[_gameId] = EFlipResult.Heads
-        : flipResults[_gameId] = EFlipResult.Tails;
-
-        emit FlipResult(_gameId, flipResults[_gameId]);
-    }
-```
-
-Let's see what's changed and what's happening now:
-
-- Earlier, when somebody called `flip()`, we calculated randomness based on `block.timestamp`, mod it with 2, and return `Heads` or `Tails` accordingly
-- Now, we get a `requestId` and we emit `RequestedRandomness` which will notify the user that Chainlink is working to find us a secure randomness
-- Later, when Chainlink is ready, it sends us that randomness (mapped to the `requestId`) through `fulfillRandomness()` where we find the `gameId`, calculate if it's a `Heads` or a `Tails` by the same logic as before, and then emit it.
-
-What's changed? Only the source of that random number.
-Voila! That marks the end of the contract. Let's see how it's looking, and then we'll jump into integrating it with the webapp!
-
-```
-//SPDX-License-Identifier: Unlicense
-pragma solidity ^0.8.0;
-
-import "@chainlink/contracts/src/v0.8/VRFConsumerBase.sol";
-
-contract CoinFlip is VRFConsumerBase {
-    enum EFlipResult {
-        Heads,
-        Tails
-    }
-
-    uint256 gameId = 0;
-
-    // chainlink vars
-    uint256 public fee;
-    bytes32 public keyHash;
-
-    // mapping of requestId to gameId
-    mapping (bytes32 => uint256) public gameIds;
-
-    // mapping of gameId => result
-    mapping (uint256 => EFlipResult) public flipResults;
-
-    event RequestedRandomness(bytes32 requestId);
-    event FlipResult(uint256 gameId, EFlipResult flipResult);
-
-    constructor(
-        address vrfCoordinator,
-        address linkToken,
-        bytes32 vrfKeyHash,
-        uint256 vrfFee
-    )
-        VRFConsumerBase(
-            vrfCoordinator,
-            linkToken
-        )
-    {
-        keyHash = vrfKeyHash;
-        fee = vrfFee;
-    }
-
-    function flip() public returns (bytes32) {
-        gameId++;
-        bytes32 requestId = getRandomNumber();
-        gameIds[requestId] = gameId;
-        emit RequestedRandomness(requestId);
-        return requestId;
-    }
-
-    /**
-    * Requests randomness
-    */
-    function getRandomNumber() public returns (bytes32 requestId) {
-        require(LINK.balanceOf(address(this)) >= fee, "Not enough LINK - fill contract with faucet");
-        return requestRandomness(keyHash, fee);
-    }
-
-    /**
-    * Callback function used by VRF Coordinator
-    */
-    function fulfillRandomness(bytes32 requestId, uint256 randomness) internal virtual override {
-        uint256 _gameId = gameIds[requestId];
-        uint256 result = randomness % 2;
-        result == 0
-        ? flipResults[_gameId] = EFlipResult.Heads
-        : flipResults[_gameId] = EFlipResult.Tails;
-
-        emit FlipResult(_gameId, flipResults[_gameId]);
-    }
-
-
-    // Fallback function
+     // Function to receive Ether. msg.data must be empty
     receive() external payable {}
+
+    // Fallback function is called when msg.data is not empty
+    fallback() external payable {}
 }
-
 ```
 
-**Did you notice something unusual?**
-Maybe the weird `receive()` function at the end?
-Well, we need to _fund_ our contracts with some LINK and ETH before we can _request randomness_. This is because our contract makes transactions with other contracts, which costs gas and LINK.
-Therefore, and since our contract currently did not have any, we create a default payable function. (Doesn't matter if it's empty)
+Lets try to understand what is happening in this contract:
 
-You can use this faucet to fund your contract: [https://faucets.chain.link/](https://faucets.chain.link/)
+We initially have the constructor:
 
-### Integrating with the webapp
-
-My weapons of choice for the webapp will be Next with TypeScript.
-
-We are going to be making a very very simplistic vanilla looking UI for this. The real beauty lies in what's happening behind the scenes.
-
-Let's start with going into the `web` directory and initing a new Next app:
-
-`cd ../web npx create-next-app@latest --typescript `
-
-This should setup a boilerplate app for you.
-
-Inside of `/pages`, create a new component called `Main.tsx`:
-
-```
-const Main = () => {
-
+```solidity
+constructor(address vrfCoordinator, address linkToken,
+bytes32 vrfKeyHash, uint256 vrfFee)
+VRFConsumerBase(vrfCoordinator, linkToken) {
+    keyHash = vrfKeyHash;
+    fee = vrfFee;
+    gameStarted = false;
 }
-
-export default Main;
 ```
 
-This will be our component that will be doing all the heavy-lifting. Let's render it inside `index.tsx`:
+The constructor takes in the following params: - `vrfCoordinator` which is the address of the VRFCoordinator contract - `linkToken` is the address of the link token which is the token in which the chainlink takes its payment - `vrfFee` is the amount of link token that will be needed to send a randomness request - `vrfKeyHash` which is the ID of the public key against which randomness is generated
 
-```
-import type { NextPage } from "next";
-import Main from "./Main";
-import Head from "next/head";
-import Image from "next/image";
-import styles from "../styles/Home.module.css";
-
-const Home: NextPage = () => {
-  return (
-    <div className={styles.container}>
-      <Head>
-        <title>Verifiable fair on-chain coin-flip</title>
-        <meta name="description" content="Verifiable fair on-chain coin-flip" />
-        <link rel="icon" href="/favicon.ico" />
-      </Head>
-
-      <main className={styles.main}>
-        <Main />
-      </main>
-
-      <footer className={styles.footer}>
-        <a
-          href="https://vercel.com?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Made with ❤️ by LW3DAO
-          <span className={styles.logo}>
-            <Image src="/vercel.svg" alt="Vercel Logo" width={72} height={16} />
-          </span>
-        </a>
-      </footer>
-    </div>
-  );
-};
-
-export default Home;
-```
-
-Now that this is done, let's go back to `Main.tsx` and code it up:
-
-First, we need to ensure wallet connections. Let's use ethers.js and web3modal:
-`yarn add ethers web3modal`
-
-Add this function:
-
-```
-  useEffect(() => {
-    if (!walletConnected) {
-      web3ModalRef.current = new Web3Modal({
-        network: "kovan",
-        providerOptions: {},
-        disableInjectedProvider: false,
-      });
-
-      connectWallet().then(() => {});
+```solidity
+    /**
+    * startGame starts the game by setting appropriate values for all the variables
+    */
+    function startGame(uint8 _maxPlayers, uint256 _entryFee) public onlyOwner {
+        // Check if there is a game already running
+        require(!gameStarted, "Game is currently running");
+        // empty the players array
+        delete players;
+        // set the max players for this game
+        maxPlayers = _maxPlayers;
+        // set the game started to true
+        gameStarted = true;
+        // setup the entryFee for the game
+        entryFee = _entryFee;
+        emit GameStarted(maxPlayers, entryFee);
     }
-  }, [walletConnected]);
 ```
 
-This runs everytime the wallet is connected/disconnected and/or the component refreshes.
+- This function is `onlyOwner` which means that it only be called by the owner
+- This function is used to start the game, after this function is called players can enter the game until limit has been achieved.
+- It also emits the `GameStarted` event
 
-What is this `connectWallet`?
-
-```
-  const connectWallet = async () => {
-    try {
-      await getProviderOrSigner();
-      setWalletConnected(true);
-    } catch (error) {
-      console.error(error);
+```solidity
+ /**
+    joinGame is called when a player wants to enter the game
+     */
+    function joinGame() public payable {
+        // Check if a game is already running
+        require(gameStarted, "Game has not been started yet");
+        // Check if the value sent by the user matches the entryFee
+        require(msg.value == entryFee, "Value sent is not equal to entryFee");
+        // Check if there is still some space left in the game to add another player
+        require(players.length < maxPlayers, "Game is full");
+        // add the sender to the players list
+        players.push(msg.sender);
+        // If the list is full start the winner selection process
+        if(players.length == maxPlayers) {
+            getRandomWinner();
+        }
     }
-  };
 ```
 
-Let's also fetch our provider/signer helper:
+- This function will be called when a user wants to enter a game
+- If the `maxPlayers` limit is reached it will call the `getRandomWinner`
 
-```
-  const getProviderOrSigner = async (needSigner = false) => {
-    const provider = await web3ModalRef!.current!.connect();
-    const web3Provider = new providers.Web3Provider(provider);
-
-    const { chainId } = await web3Provider.getNetwork();
-    if (chainId !== 42) {
-      window.alert("Please switch to the Kovan network!");
-      throw new Error("Please switch to the Kovan network");
+```solidity
+ /**
+    * getRandomWinner is called to start the process of selecting a random winner
+    */
+    function getRandomWinner() public returns (bytes32 requestId) {
+        // LINK is an internal interface for Link token found within the VRFConsumerBase
+        // Here we use the balanceOF method from that interface to make sure that our
+        // contract has enough link so that we can request the VRFCoordinator for randomness
+        require(LINK.balanceOf(address(this)) >= fee, "Not enough LINK");
+        // Make a request to the VRF coordinator.
+        // requestRandomness is a function within the VRFConsumerBase
+        // it starts the process of randomness generation
+        return requestRandomness(keyHash, fee);
     }
+```
 
-    if (needSigner) {
-      const signer = web3Provider.getSigner();
-      return signer;
+- This function first checks if our contract has Link token before we request for randomness because chainlink contracts request fee in the form of Link token
+- Then this function calls the `requestRandomness` which we inherited from `VRFConsumerBase` and begins the process for random number generation.
+
+```bash
+ /**
+    * fulfillRandomness is called by VRFCoordinator when it receives a valid VRF proof.
+    * This function is overrided to act upon the random number generated by Chainlink VRF.
+    * @param requestId  this ID is unique for the request we sent to the VRF Coordinator
+    * @param randomness this is a random unit256 generated and returned to us by the VRF Coordinator
+   */
+    function fulfillRandomness(bytes32 requestId, uint256 randomness) internal virtual override  {
+        // We want out winnerIndex to be in the length from 0 to players.length-1
+        // For this we mod it with the player.length value
+        uint256 winnerIndex = randomness % players.length;
+        // get the address of the winner from the players array
+        address winner = players[winnerIndex];
+        // send the ether in the contract to the winner
+        (bool sent,) = winner.call{value: address(this).balance}("");
+        require(sent, "Failed to send Ether");
+        // Emit that the game has ended
+        emit GameEnded(winner,requestId);
+        // set the gameStarted variable to false
+        gameStarted = false;
     }
-    return web3Provider;
-  };
 ```
 
-Now that our wallet connection is good, let's jump to the good part.
+- this function was inherited from `VRFConsumerBase`.It is called by `VRFCoordinator` contract after it recieves the randomness from the external world,
+- After recieving the randomness which can be any number in the range of uint256 we decrease its range from `0 to players.length-1` using the mod
+- This selects an index for us and we use that index to retrieve the winner from the players array
+- It send all the ether in the contract to the winner and emits a `GameEnded event`
 
-Let's start with initialising a few state variables:
+- Now we would install `dotenv` package to be able to import the env file and use it in our config. Open up a terminal pointing at`hardhat-tutorial` directory and execute this command
 
-```
-    // True if waiting for a transaction to be mined, false otherwise.
-  const [loading, setLoading] = useState(false);
+  ```bash
+  npm install dotenv
+  ```
 
-    // If request for randomness is sent to chainlink
-  const [sentRandomness, setSentRandomness] = useState(false);
+- Now create a `.env` file in the `hardhat-tutorial` folder and add the following lines, use the instructions in the comments to get your `ALCHEMY_API_KEY_URL`, `MUMBAI_PRIVATE_KEY` and `POLYGONSCAN_KEY`.If you dont have Mumbai on MetaMask, you can follow [this](https://portal.thirdweb.com/guides/get-matic-on-polygon-mumbai-testnet-faucet) to add it to your MetaMask, make sure that the account from which you get your mumbai private key is funded with mumbai matic, you can get some from [here](https://faucet.polygon.technology/).
 
-    // True if user has connected their wallet, false otherwise
-  const [walletConnected, setWalletConnected] = useState(false);
+  ```bash
+    // Go to https://www.alchemyapi.io, sign up, create
+    // a new App in its dashboard and select the network as Mumbai, and replace "add-the-alchemy-key-url-here" with its key url
+    ALCHEMY_API_KEY_URL="add-the-alchemy-key-url-here"
 
-    // `flipId` in contract
-  const [flipId, setFlipId] = useState<number>();
+    // Replace this private key with your Mumbai account private key
+    // To export your private key from Metamask, open Metamask and
+    // go to Account Details > Export Private Key
+    // Be aware of NEVER putting real Ether into testing accounts
+    MUMBAI_PRIVATE_KEY="add-the-mumbai-private-key-here"
 
-    // the final result from the contract (0 or 1)
-  const [flipResult, setFlipResult] = useState<number>();
-```
+    // Go to https://polygonscan.com/, sign up, on your account overview page,
+    // click on `API Keys`, add a new API key and copy the
+    // `API Key Token`
+    POLYGONSCAN_KEY="add-the-polygonscan-api-token-here"
+  ```
 
-And now conditionally render some stuff:
+- Now open the hardhat.config.js file, we will add the `mumbai` network here so that we can deploy our contract to mumbai and an `etherscan` object so that we can verify our contract on `polygonscan`. Replace all the lines in the `hardhart.config.js` file with the given below lines.
 
-```
-return (
-    <div>
-      <h1>Flip-a-Coin</h1>
-      {flipId && (
-        <div>
-          <h2>Flip #{flipId}</h2>
-          <p>
-            <strong>Result:</strong> {flipResult === 0 ? "Heads" : "Tails"}
-          </p>
-        </div>
-      )}
-      {sentRandomness && (
-        <p>Request to chainlink for randomness has been sent</p>
-      )}
-      <button onClick={flipBtnHandler} disabled={loading}>
-        {loading ? "Loading..." : "Flip"}
-      </button>
-    </div>
-  );
-```
+  ```javascript
+  require("@nomiclabs/hardhat-waffle");
+  require("dotenv").config({ path: ".env" });
+  require("@nomiclabs/hardhat-etherscan");
 
-Now let's work on the `flipBtnHandler`. We want to make contract txns now:
+  const ALCHEMY_API_KEY_URL = process.env.ALCHEMY_API_KEY_URL;
 
-```
-const flipBtnHandler = async () => {
-    try {
-      setFlipId(undefined);
-      setFlipResult(undefined);
-      const signer = await getProviderOrSigner(true);
-      const contract = getContractInstance(signer);
-      const txn = await contract.flip();
-      setLoading(true);
-      const minedTxn = await txn.wait();
-      console.log({ minedTxn });
-      listenForEvents();
-    } catch (error: any) {
-      console.error(error);
-      alert(error?.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-```
+  const MUMBAI_PRIVATE_KEY = process.env.MUMBAI_PRIVATE_KEY;
 
-`getContractInstance()`:
+  const POLYGONSCAN_KEY = process.env.POLYGONSCAN_KEY;
 
-```
-  const getContractInstance = (
-    providerOrSigner: providers.Provider | Signer
-  ) => {
-    return new Contract(
-      config.contractAddress,
-      config.contractAbi,
-      providerOrSigner
-    );
-  };
-```
-
-This should now make transactions and stuff should start working.
-
-However, we now want to listen to contract events, and need to initialise the `listenForEvents()` function we called in the `btnHandler`:
-
-```
-  const listenForEvents = async () => {
-    const provider = await getProviderOrSigner();
-    const contract = getContractInstance(provider);
-    contract.on("RequestedRandomness", (requestId: any) => {
-      alert("Requested randomness");
-      setSentRandomness(true);
-    });
-    contract.on("FlipResult", (_flipId: BigNumber, _flipResult: number) => {
-      alert("flip result aagya");
-      const flipId = parseInt(BigNumber.from(_flipId).toString());
-      const flipResult = _flipResult;
-      setSentRandomness(false);
-      setFlipId(flipId);
-      setFlipResult(flipResult);
-    });
-  };
-```
-
-We get the contract instance, open an event listener, receive callbacks with the args when the event is emitted, and then set those states!
-
-That's it!!
-
-Let's go ahead and deploy and run everything and test it out!
-
-Before building eth, we'll have to setup the `Hardhat.config.js`:
-
-```
-require("@nomiclabs/hardhat-waffle");
-require("dotenv").config();
-
-const ALCHEMY_API_KEY_URL = process.env.ALCHEMY_API_KEY_URL;
-
-const KOVAN_PRIVATE_KEY = process.env.PRIVATE_KEY;
-
-module.exports = {
-  solidity: "0.8.4",
-  networks: {
-    kovan: {
-      url: ALCHEMY_API_KEY_URL,
-      accounts: [KOVAN_PRIVATE_KEY],
+  module.exports = {
+    solidity: "0.8.4",
+    networks: {
+      mumbai: {
+        url: ALCHEMY_API_KEY_URL,
+        accounts: [MUMBAI_PRIVATE_KEY],
+      },
     },
-  },
-};
+    etherscan: {
+      apiKey: {
+        polygonMumbai: POLYGONSCAN_KEY,
+      },
+    },
+  };
+  ```
+
+- Create a new folder named as `constants` and inside that add a new file named `index.js`. Add these lines to the `index.js` file:
+
+```javascript
+const { ethers, BigNumber } = require("hardhat");
+
+const LINK_TOKEN = "0x326C977E6efc84E512bB9C30f76E30c160eD06FB";
+const VRF_COORDINATOR = "0x8C7382F9D8f56b33781fE506E897a4F1e2d17255";
+const KEY_HASH =
+  "0x6e75b569a01ef56d18cab6a8e71e6600d6ce853834d4a5748b720d06f878b3a4";
+const FEE = ethers.utils.parseEther("0.0001");
+module.exports = { LINK_TOKEN, VRF_COORDINATOR, KEY_HASH, FEE };
 ```
 
-Just add your Alchemy API key and private key in the env.
-Then, let's setup the deploy script:
-`/scripts/deploy.js`:
+The values we got for this are from [here](https://docs.chain.link/docs/vrf-contracts/v1/#polygon-matic-mumbai-testnet) and are already provided to us by Chainlink
 
-```
-const hre = require("hardhat");
-const config = require("../config");
+- Lets deploy the contract to `mumbai` network. Create a new file named `deploy.js` under the `scripts` folder.
+
+```javascript
+const { ethers } = require("hardhat");
+require("dotenv").config({ path: ".env" });
+require("@nomiclabs/hardhat-etherscan");
+const { FEE, VRF_COORDINATOR, LINK_TOKEN, KEY_HASH } = require("../constants");
 
 async function main() {
-  const CoinFlip = await hre.ethers.getContractFactory("CoinFlip");
-  const contract = await CoinFlip.deploy(
-    config.vrfCoordinator,
-    config.linkToken,
-    config.vrfKeyHash,
-    config.vrfFee
+  /*
+ A ContractFactory in ethers.js is an abstraction used to deploy new smart contracts,
+ so randomWinnerGame here is a factory for instances of our RandomWinnerGame contract.
+ */
+  const randomWinnerGame = await ethers.getContractFactory("RandomWinnerGame");
+  // deploy the contract
+  const deployedRandomWinnerGameContract = await randomWinnerGame.deploy(
+    VRF_COORDINATOR,
+    LINK_TOKEN,
+    KEY_HASH,
+    FEE
   );
-  console.log("deploying...");
 
-  await contract.deployed();
+  await deployedRandomWinnerGameContract.deployed();
 
-  console.log("CoinFlip deployed to:", contract.address);
+  // print the address of the deployed contract
+  console.log(
+    "Verify Contract Address:",
+    deployedRandomWinnerGameContract.address
+  );
+
+  console.log("Sleeping.....");
+  // Wait for etherscan to notice that the contract has been deployed
+  await sleep(30000);
+
+  // Verify the contract after deploying
+  await hre.run("verify:verify", {
+    address: deployedRandomWinnerGameContract.address,
+    constructorArguments: [VRF_COORDINATOR, LINK_TOKEN, KEY_HASH, FEE],
+  });
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// Call the main function and catch if there is any error
 main()
   .then(() => process.exit(0))
   .catch((error) => {
@@ -638,47 +458,51 @@ main()
   });
 ```
 
-Setup your VRF constants in a new `config.js`, or here. Whatever you'd prefer.
+- Compile the contract, open up a terminal pointing at`hardhat-tutorial` directory and execute this command
 
-Once that's done, let's deploy:
-`npx hardhat run --network kovan scripts/deploy.js`
+  ```bash
+    npx hardhat compile
+  ```
 
-That should return you the deployed contract address!!
+- To deploy, open up a terminal pointing at `hardhat-tutorial` directory and execute this command
 
-Make sure to fund it with ETH and LINK before flipping the coin! ;)
+  ```bash
+    npx hardhat run scripts/deploy.js --network mumbai
+  ```
 
-After that, update the ABI and contract address in the frontend, and we're good to now also run the web:
-`yarn dev`
+- It should have printed a link to mumbai polygonscan, your contract is now verified. Click on polygonscan link and interact with your contract there.
 
-Congratulations! Your own provably-fair Chainlink VRFs powered coin-toss is now active!
+- Lets play the game on polygonscan now
 
-## Testing
+- In your terminal they should have printed a link to your contract if not then go to [Mumbai Polygon Scan](https://mumbai.polygonscan.com/) and search for your contract address, it should be verified
 
-- Connect your wallet on Kovan
-- Click on the Flip button
-- Wait until you see an alert saying "Requested Randomness" which means request has been sent to Chainlink.
-- Now we wait. This can take 20 seconds-2minutes sometimes.
-- Next, you should see updated frontend with your game ID and result (Heads/Tails)!!
+- We will now fund this contract with some Chainlink so that we can request randomness, go to [Polygon Faucet](https://faucet.polygon.technology/) and select Link from the dropdon and enter your contract's address
 
-## Push to Github
+![](https://i.imgur.com/HmrQYPs.png)
 
-Make sure to push all this code to Github before proceeding to the next step.
+- Now connect your wallet to the [Mumbai Polygon Scan](https://mumbai.polygonscan.com/) by clicking on `Connect To Web3`
 
-## Website Deployment
+![](https://i.imgur.com/9hOUYgs.png)
 
-What good is a website if you cannot share it with others? Let's work on deploying your dApp to the world so you can share it with all your LearnWeb3DAO frens.
+- Then enter some values in the startGame function
 
-- Go to [Vercel Dashboard](https://vercel.com) and sign in with your GitHub account.
-- Click on the `New Project` button and select your `Coin-Flip-VRFs` repo.
-- When configuring your new project, Vercel will allow you to customize your `Root Directory`
-- Since our Next.js application is within a subfolder of the repo, we need to modify it.
-- Click `Edit` next to `Root Directory` and set it to `my-app`.
-- Select the framework as `Next.js`
-- Click `Deploy`
-- Now you can see your deployed website by going to your Vercel Dashboard, selecting your project, and copying the domain from there!
+![](https://i.imgur.com/ULPV0lh.png)
 
-## CONGRATULATIONS! You're all done!
+- Now you can make your address join the game
+  Also NOTE: The value I entered here is 10 WEI because that was the value of entry fee that I specified but because join game accepts ether I had to convert 10 WEI into ether. You can also convert your entry fee into ether using [eth converter](https://eth-converter.com/)
 
-Hopefully you enjoyed this tutorial.
-Feel free to go artistic on the frontend and add animations or whatever! :D
-Don't forget to share your verifiable on-chain coin flip website in the `#showcase` channel on Discord ❤️
+![](https://i.imgur.com/Dd9d59J.png)
+
+- Now refresh the page and connect a new wallet which has some matic, so that you can make another player join
+  Note I set my max players to 2 so it will select the winner after I make another address join the game
+
+- If you go to your events tab now and keep refreshing(It takes some time for the `VRFCoordinator` to call the `fullFillRandomness` function because it has to get the data from the external world) at one point you will be able to see an event which says `GameEnded`
+  From the dropdown convert `Hex` to an `Address` for the first value with the GameEnded event because that is the address of the winner
+
+![](https://i.imgur.com/DdQpsHL.png)
+
+Boom its done 🚀 You now know how to place this game. In the next tutorial we will create a UI for this and will learn how to track these events using code itself.
+
+Lets goo 🚀🚀
+
+---
