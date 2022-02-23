@@ -50,9 +50,11 @@ If you look at the diagram you can understand the flow, `RandomNFTWinner` contra
 
 ## BUIDL IT
 
+- Initially start by creating a folder named `RandomWinnerGame` in your computer
+- 
 To build the smart contract we would be using [Hardhat](https://hardhat.org/). Hardhat is an Ethereum development environment and framework designed for full stack development in Solidity. In simple words you can write your smart contract, deploy them, run tests, and debug your code.
 
-- To setup a Hardhat project, Open up a terminal and execute these commands
+- To setup a Hardhat project, Open up a terminal and execute these commands inside the `RandomWinnerGame` folder
 
   ```bash
   mkdir hardhat-tutorial
