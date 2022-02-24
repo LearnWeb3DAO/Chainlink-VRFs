@@ -22,11 +22,15 @@ contract RandomWinnerGame is VRFConsumerBase, Ownable {
     bool gameStarted;
     // the fees for entering the game
     uint256 entryFee;
+    // current game id
+    uint256 gameId;
 
-    // emitted when the game ends
-    event GameEnded(address winner,bytes32 requestId);
     // emitted when the game starts
-    event GameStarted(uint8 maxPlayers, uint256 entryFee);
+    event GameStarted(uint256 gameId, uint8 maxPlayers, uint256 entryFee);
+    // emitted when someone joins a game
+    event PlayerJoined(uint256 gameId, address player);
+    // emitted when the game ends
+    event GameEnded(uint256 gameId, address winner,bytes32 requestId);
 
    /**
    * constructor inherits a VRFConsumerBase and initiates the values for keyHash, fee and gameStarted
@@ -57,7 +61,8 @@ contract RandomWinnerGame is VRFConsumerBase, Ownable {
         gameStarted = true;
         // setup the entryFee for the game
         entryFee = _entryFee;
-        emit GameStarted(maxPlayers, entryFee);
+        gameId += 1;
+        emit GameStarted(gameId, maxPlayers, entryFee);
     }
 
     /**
@@ -72,6 +77,7 @@ contract RandomWinnerGame is VRFConsumerBase, Ownable {
         require(players.length < maxPlayers, "Game is full");
         // add the sender to the players list
         players.push(msg.sender);
+        emit PlayerJoined(gameId, msg.sender);
         // If the list is full start the winner selection process
         if(players.length == maxPlayers) {
             getRandomWinner();
@@ -94,7 +100,7 @@ contract RandomWinnerGame is VRFConsumerBase, Ownable {
         (bool sent,) = winner.call{value: address(this).balance}("");
         require(sent, "Failed to send Ether");
         // Emit that the game has ended
-        emit GameEnded(winner,requestId);
+        emit GameEnded(gameId, winner,requestId);
         // set the gameStarted variable to false
         gameStarted = false;
     }

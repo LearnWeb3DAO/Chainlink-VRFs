@@ -51,8 +51,7 @@ If you look at the diagram you can understand the flow, `RandomNFTWinner` contra
 ## BUIDL IT
 
 - Initially start by creating a folder named `RandomWinnerGame` in your computer
-- 
-To build the smart contract we would be using [Hardhat](https://hardhat.org/). Hardhat is an Ethereum development environment and framework designed for full stack development in Solidity. In simple words you can write your smart contract, deploy them, run tests, and debug your code.
+- To build the smart contract we would be using [Hardhat](https://hardhat.org/). Hardhat is an Ethereum development environment and framework designed for full stack development in Solidity. In simple words you can write your smart contract, deploy them, run tests, and debug your code.
 
 - To setup a Hardhat project, Open up a terminal and execute these commands inside the `RandomWinnerGame` folder
 
@@ -129,11 +128,15 @@ contract RandomWinnerGame is VRFConsumerBase, Ownable {
     bool gameStarted;
     // the fees for entering the game
     uint256 entryFee;
+    // current game id
+    uint256 gameId;
 
-    // emitted when the game ends
-    event GameEnded(address winner,bytes32 requestId);
     // emitted when the game starts
-    event GameStarted(uint8 maxPlayers, uint256 entryFee);
+    event GameStarted(uint256 gameId, uint8 maxPlayers, uint256 entryFee);
+    // emitted when someone joins a game
+    event PlayerJoined(uint256 gameId, address player);
+    // emitted when the game ends
+    event GameEnded(uint256 gameId, address winner,bytes32 requestId);
 
    /**
    * constructor inherits a VRFConsumerBase and initiates the values for keyHash, fee and gameStarted
@@ -164,7 +167,8 @@ contract RandomWinnerGame is VRFConsumerBase, Ownable {
         gameStarted = true;
         // setup the entryFee for the game
         entryFee = _entryFee;
-        emit GameStarted(maxPlayers, entryFee);
+        gameId += 1;
+        emit GameStarted(gameId, maxPlayers, entryFee);
     }
 
     /**
@@ -179,6 +183,7 @@ contract RandomWinnerGame is VRFConsumerBase, Ownable {
         require(players.length < maxPlayers, "Game is full");
         // add the sender to the players list
         players.push(msg.sender);
+        emit PlayerJoined(gameId, msg.sender);
         // If the list is full start the winner selection process
         if(players.length == maxPlayers) {
             getRandomWinner();
@@ -201,7 +206,7 @@ contract RandomWinnerGame is VRFConsumerBase, Ownable {
         (bool sent,) = winner.call{value: address(this).balance}("");
         require(sent, "Failed to send Ether");
         // Emit that the game has ended
-        emit GameEnded(winner,requestId);
+        emit GameEnded(gameId, winner,requestId);
         // set the gameStarted variable to false
         gameStarted = false;
     }
@@ -226,6 +231,7 @@ contract RandomWinnerGame is VRFConsumerBase, Ownable {
     // Fallback function is called when msg.data is not empty
     fallback() external payable {}
 }
+
 ```
 
 Lets try to understand what is happening in this contract:
@@ -233,34 +239,42 @@ Lets try to understand what is happening in this contract:
 We initially have the constructor:
 
 ```solidity
-constructor(address vrfCoordinator, address linkToken,
-bytes32 vrfKeyHash, uint256 vrfFee)
-VRFConsumerBase(vrfCoordinator, linkToken) {
-    keyHash = vrfKeyHash;
-    fee = vrfFee;
-    gameStarted = false;
-}
+/**
+  * constructor inherits a VRFConsumerBase and initiates the values for keyHash, fee and gameStarted
+  * @param vrfCoordinator address of VRFCoordinator contract
+  * @param linkToken address of LINK token contract
+  * @param vrfFee the amount of LINK to send with the request
+  * @param vrfKeyHash ID of public key against which randomness is generated
+  */
+  constructor(address vrfCoordinator, address linkToken,
+  bytes32 vrfKeyHash, uint256 vrfFee)
+  VRFConsumerBase(vrfCoordinator, linkToken) {
+      keyHash = vrfKeyHash;
+      fee = vrfFee;
+      gameStarted = false;
+  }
 ```
 
 The constructor takes in the following params: - `vrfCoordinator` which is the address of the VRFCoordinator contract - `linkToken` is the address of the link token which is the token in which the chainlink takes its payment - `vrfFee` is the amount of link token that will be needed to send a randomness request - `vrfKeyHash` which is the ID of the public key against which randomness is generated
 
 ```solidity
-    /**
-    * startGame starts the game by setting appropriate values for all the variables
-    */
-    function startGame(uint8 _maxPlayers, uint256 _entryFee) public onlyOwner {
-        // Check if there is a game already running
-        require(!gameStarted, "Game is currently running");
-        // empty the players array
-        delete players;
-        // set the max players for this game
-        maxPlayers = _maxPlayers;
-        // set the game started to true
-        gameStarted = true;
-        // setup the entryFee for the game
-        entryFee = _entryFee;
-        emit GameStarted(maxPlayers, entryFee);
-    }
+/**
+* startGame starts the game by setting appropriate values for all the variables
+*/
+function startGame(uint8 _maxPlayers, uint256 _entryFee) public onlyOwner {
+    // Check if there is a game already running
+    require(!gameStarted, "Game is currently running");
+    // empty the players array
+    delete players;
+    // set the max players for this game
+    maxPlayers = _maxPlayers;
+    // set the game started to true
+    gameStarted = true;
+    // setup the entryFee for the game
+    entryFee = _entryFee;
+    gameId += 1;
+    emit GameStarted(gameId, maxPlayers, entryFee);
+}
 ```
 
 - This function is `onlyOwner` which means that it only be called by the owner
@@ -268,7 +282,7 @@ The constructor takes in the following params: - `vrfCoordinator` which is the a
 - It also emits the `GameStarted` event
 
 ```solidity
- /**
+/**
     joinGame is called when a player wants to enter the game
      */
     function joinGame() public payable {
@@ -280,6 +294,7 @@ The constructor takes in the following params: - `vrfCoordinator` which is the a
         require(players.length < maxPlayers, "Game is full");
         // add the sender to the players list
         players.push(msg.sender);
+        emit PlayerJoined(gameId, msg.sender);
         // If the list is full start the winner selection process
         if(players.length == maxPlayers) {
             getRandomWinner();
@@ -291,7 +306,7 @@ The constructor takes in the following params: - `vrfCoordinator` which is the a
 - If the `maxPlayers` limit is reached it will call the `getRandomWinner`
 
 ```solidity
- /**
+    /**
     * getRandomWinner is called to start the process of selecting a random winner
     */
     function getRandomWinner() public returns (bytes32 requestId) {
@@ -309,8 +324,8 @@ The constructor takes in the following params: - `vrfCoordinator` which is the a
 - This function first checks if our contract has Link token before we request for randomness because chainlink contracts request fee in the form of Link token
 - Then this function calls the `requestRandomness` which we inherited from `VRFConsumerBase` and begins the process for random number generation.
 
-```bash
- /**
+```solidity
+/**
     * fulfillRandomness is called by VRFCoordinator when it receives a valid VRF proof.
     * This function is overrided to act upon the random number generated by Chainlink VRF.
     * @param requestId  this ID is unique for the request we sent to the VRF Coordinator
@@ -326,7 +341,7 @@ The constructor takes in the following params: - `vrfCoordinator` which is the a
         (bool sent,) = winner.call{value: address(this).balance}("");
         require(sent, "Failed to send Ether");
         // Emit that the game has ended
-        emit GameEnded(winner,requestId);
+        emit GameEnded(gameId, winner,requestId);
         // set the gameStarted variable to false
         gameStarted = false;
     }
