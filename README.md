@@ -125,11 +125,11 @@ contract RandomWinnerGame is VRFConsumerBase, Ownable {
     //Max number of players in one game
     uint8 maxPlayers;
     // Variable to indicate if the game has started or not
-    bool gameStarted;
+    bool public gameStarted;
     // the fees for entering the game
     uint256 entryFee;
     // current game id
-    uint256 gameId;
+    uint256 public gameId;
 
     // emitted when the game starts
     event GameStarted(uint256 gameId, uint8 maxPlayers, uint256 entryFee);
@@ -214,7 +214,7 @@ contract RandomWinnerGame is VRFConsumerBase, Ownable {
     /**
     * getRandomWinner is called to start the process of selecting a random winner
     */
-    function getRandomWinner() public returns (bytes32 requestId) {
+    function getRandomWinner() private returns (bytes32 requestId) {
         // LINK is an internal interface for Link token found within the VRFConsumerBase
         // Here we use the balanceOF method from that interface to make sure that our
         // contract has enough link so that we can request the VRFCoordinator for randomness
@@ -231,28 +231,6 @@ contract RandomWinnerGame is VRFConsumerBase, Ownable {
     // Fallback function is called when msg.data is not empty
     fallback() external payable {}
 }
-
-```
-
-Lets try to understand what is happening in this contract:
-
-We initially have the constructor:
-
-```solidity
-/**
-  * constructor inherits a VRFConsumerBase and initiates the values for keyHash, fee and gameStarted
-  * @param vrfCoordinator address of VRFCoordinator contract
-  * @param linkToken address of LINK token contract
-  * @param vrfFee the amount of LINK to send with the request
-  * @param vrfKeyHash ID of public key against which randomness is generated
-  */
-  constructor(address vrfCoordinator, address linkToken,
-  bytes32 vrfKeyHash, uint256 vrfFee)
-  VRFConsumerBase(vrfCoordinator, linkToken) {
-      keyHash = vrfKeyHash;
-      fee = vrfFee;
-      gameStarted = false;
-  }
 ```
 
 The constructor takes in the following params: - `vrfCoordinator` which is the address of the VRFCoordinator contract - `linkToken` is the address of the link token which is the token in which the chainlink takes its payment - `vrfFee` is the amount of link token that will be needed to send a randomness request - `vrfKeyHash` which is the ID of the public key against which randomness is generated
@@ -309,7 +287,7 @@ function startGame(uint8 _maxPlayers, uint256 _entryFee) public onlyOwner {
     /**
     * getRandomWinner is called to start the process of selecting a random winner
     */
-    function getRandomWinner() public returns (bytes32 requestId) {
+    function getRandomWinner() private returns (bytes32 requestId) {
         // LINK is an internal interface for Link token found within the VRFConsumerBase
         // Here we use the balanceOF method from that interface to make sure that our
         // contract has enough link so that we can request the VRFCoordinator for randomness

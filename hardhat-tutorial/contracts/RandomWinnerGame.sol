@@ -19,11 +19,11 @@ contract RandomWinnerGame is VRFConsumerBase, Ownable {
     //Max number of players in one game
     uint8 maxPlayers;
     // Variable to indicate if the game has started or not
-    bool gameStarted;
+    bool public gameStarted;
     // the fees for entering the game
     uint256 entryFee;
     // current game id
-    uint256 gameId;
+    uint256 public gameId;
 
     // emitted when the game starts
     event GameStarted(uint256 gameId, uint8 maxPlayers, uint256 entryFee);
@@ -108,7 +108,7 @@ contract RandomWinnerGame is VRFConsumerBase, Ownable {
     /**
     * getRandomWinner is called to start the process of selecting a random winner
     */
-    function getRandomWinner() public returns (bytes32 requestId) {
+    function getRandomWinner() private returns (bytes32 requestId) {
         // LINK is an internal interface for Link token found within the VRFConsumerBase
         // Here we use the balanceOF method from that interface to make sure that our 
         // contract has enough link so that we can request the VRFCoordinator for randomness
