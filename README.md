@@ -2,14 +2,16 @@
 
 ## Introduction
 
-When dealing with computers, randomness is an important but difficult issue to handle due to a computer's deterministic nature.This is true even more so when speaking of blockchain because not only is the computer deterministic, but it is also transparent. As a result, trusted random numbers cannot be generated natively in Solidity because randomness will be calculated on-chain which is public info to all the miners and the users.
+When dealing with computers, randomness is an important but difficult issue to handle due to a computer's deterministic nature. This is true even more so when speaking of blockchain because not only is the computer deterministic, but it is also transparent. As a result, trusted random numbers cannot be generated natively in Solidity because randomness will be calculated on-chain which is public info to all the miners and the users.
 
 So we can use some web2 technologies to generate the randomness and then use them on-chain.
 
 ## What is an oracle?
 
-An oracle sends data from the outside world to a blockchain.Smart contract on the blockchain can then use this data to make a decision.So they are just third-party services that provide smart contracts with external data.They act as bridges between blockchains and the external world.
-However it is important to note that the blockchain oracle is not itself the data source but its job is to query, verify and authenticate the outside data and then futher pass it to the smart contract.
+- An oracle sends data from the outside world to a blockchain's smart contract and vice-verca. 
+- Smart contract can then use this data to make a decision and change its state.
+- They act as bridges between blockchains and the external world.
+- However it is important to note that the blockchain oracle is not itself the data source but its job is to query, verify and authenticate the outside data and then futher pass it to the smart contract.
 
 Today we will learn about one of oracles named Chainlink VRF's
 
@@ -17,7 +19,11 @@ Lets goo 🚀
 
 ## Intro
 
-Chainlink VRF's are oracles which used to generate random values. These values are verified using cryptographic proofs.These proofs prove that the results werent tampered or manipulated by oracle operators, users, miners etc.Proofs are then published on-chain so that they can be verified, after there verification is successful they are used by other smart contracts which requested randomness.
+- Chainlink VRF's are oracles which used to generate random values. 
+- These values are verified using cryptographic proofs.
+- These proofs prove that the results werent tampered or manipulated by oracle operators, users, miners etc.
+- Proofs are published on-chain so that they can be verified
+- After there verification is successful they are used by smart contracts which requested randomness.
 
 The official Chainlink Docs describe VRFs as:
 
@@ -26,15 +32,17 @@ The official Chainlink Docs describe VRFs as:
 ## How does it work?
 
 - Chainlink has two contracts that we are mostly concerned about [VRFConsumerBase.sol](https://github.com/smartcontractkit/chainlink/blob/master/contracts/src/v0.8/VRFConsumerBase.sol) and VRFCoordinator
-- VRFConsumerBase is the contract that will be finally calling the VRF Coordinator which is mostly reponsible for publishing the randomness
-- We will be inheriting VRFConsumerBase from which we will be using two functions:
+- VRFConsumerBase is the contract that will be calling the VRF Coordinator which is finally reponsible for publishing the randomness
+- We will be inheriting VRFConsumerBase and will be using two functions from it:
   - requestRandomness, which makes the initial request for randomness.
   - fulfillRandomness, which is the function that receives and does something with verified randomness.
 
 ![](https://i.imgur.com/ssQTlkc.png)
 
-If you look at the diagram you can understand the flow, `RandomNFTWinner` contract will inherit the `VRFConsumerBase` contract and will call the `requestRandomness` function within the `VRFConsumerBase`. On calling that function the request to randomness starts and the `VRFConsumerBase` further calls the `VRFCoordinator` contract which is reponsible for getting the randomness back from the external world. After the `VRFCoordinator` has the randomness it calls the `fullFillRandomness` function within the `VRFConsumerBase` which further then selects the winner.
-**Note the important part is that eventhough you called the `requestRandomness` function you get the randomness back in the `fullFillRandomness` function**
+- If you look at the diagram you can understand the flow, `RandomGameWinner` contract will inherit the `VRFConsumerBase` contract and will call the `requestRandomness` function within the `VRFConsumerBase`. 
+- On calling that function the request to randomness starts and the `VRFConsumerBase` further calls the `VRFCoordinator` contract which is reponsible for getting the randomness back from the external world.
+- After the `VRFCoordinator` has the randomness it calls the `fullFillRandomness` function within the `VRFConsumerBase` which further then selects the winner.
+- **Note the important part is that eventhough you called the `requestRandomness` function you get the randomness back in the `fullFillRandomness` function**
 
 ## Prerequisites
 
@@ -45,7 +53,7 @@ If you look at the diagram you can understand the flow, `RandomNFTWinner` contra
 
 - We will build a lottery game today
 - Each game will have a max number of players and an entry fee
-- After max number of players have entered the game,one winner is chosen at randomly
+- After max number of players have entered the game, one winner is chosen at random
 - The winner will get `maxplayers*entryfee` amount of ether for winning the game
 
 ## BUIDL IT
@@ -101,7 +109,7 @@ npm install --save-dev @nomiclabs/hardhat-etherscan
 npm install --save @chainlink/contracts
 ```
 
-- Now create a new file inside the `contracts` directory called `RandomeWinnerGame.sol`.
+- Now create a new file inside the `contracts` directory called `RandomeWinnerGame.sol` and paste the following lines of code:
 
 ```solidity
 // SPDX-License-Identifier: MIT
@@ -233,7 +241,13 @@ contract RandomWinnerGame is VRFConsumerBase, Ownable {
 }
 ```
 
-The constructor takes in the following params: - `vrfCoordinator` which is the address of the VRFCoordinator contract - `linkToken` is the address of the link token which is the token in which the chainlink takes its payment - `vrfFee` is the amount of link token that will be needed to send a randomness request - `vrfKeyHash` which is the ID of the public key against which randomness is generated
+- The constructor takes in the following params: 
+    - `vrfCoordinator` which is the address of the VRFCoordinator contract 
+    - `linkToken` is the address of the link token which is the token in which the chainlink takes its payment
+    - `vrfFee` is the amount of link token that will be needed to send a randomness request
+    - `vrfKeyHash` which is the ID of the public key against which randomness is generated. This value is responsible for generating an unique Id for our randomneses request called as `requestId`
+
+**(All these values are provided to us by Chainlink)**
 
 ```solidity
 /**
@@ -255,55 +269,55 @@ function startGame(uint8 _maxPlayers, uint256 _entryFee) public onlyOwner {
 }
 ```
 
-- This function is `onlyOwner` which means that it only be called by the owner
+- This function is `onlyOwner` which means that it can only be called by the owner
 - This function is used to start the game, after this function is called players can enter the game until limit has been achieved.
 - It also emits the `GameStarted` event
 
 ```solidity
 /**
-    joinGame is called when a player wants to enter the game
-     */
-    function joinGame() public payable {
-        // Check if a game is already running
-        require(gameStarted, "Game has not been started yet");
-        // Check if the value sent by the user matches the entryFee
-        require(msg.value == entryFee, "Value sent is not equal to entryFee");
-        // Check if there is still some space left in the game to add another player
-        require(players.length < maxPlayers, "Game is full");
-        // add the sender to the players list
-        players.push(msg.sender);
-        emit PlayerJoined(gameId, msg.sender);
-        // If the list is full start the winner selection process
-        if(players.length == maxPlayers) {
-            getRandomWinner();
-        }
+joinGame is called when a player wants to enter the game
+ */
+function joinGame() public payable {
+    // Check if a game is already running
+    require(gameStarted, "Game has not been started yet");
+    // Check if the value sent by the user matches the entryFee
+    require(msg.value == entryFee, "Value sent is not equal to entryFee");
+    // Check if there is still some space left in the game to add another player
+    require(players.length < maxPlayers, "Game is full");
+    // add the sender to the players list
+    players.push(msg.sender);
+    emit PlayerJoined(gameId, msg.sender);
+    // If the list is full start the winner selection process
+    if(players.length == maxPlayers) {
+        getRandomWinner();
     }
+}
 ```
 
 - This function will be called when a user wants to enter a game
-- If the `maxPlayers` limit is reached it will call the `getRandomWinner`
+- If the `maxPlayers` limit is reached it will call the `getRandomWinner` function
 
 ```solidity
-    /**
-    * getRandomWinner is called to start the process of selecting a random winner
-    */
-    function getRandomWinner() private returns (bytes32 requestId) {
-        // LINK is an internal interface for Link token found within the VRFConsumerBase
-        // Here we use the balanceOF method from that interface to make sure that our
-        // contract has enough link so that we can request the VRFCoordinator for randomness
-        require(LINK.balanceOf(address(this)) >= fee, "Not enough LINK");
-        // Make a request to the VRF coordinator.
-        // requestRandomness is a function within the VRFConsumerBase
-        // it starts the process of randomness generation
-        return requestRandomness(keyHash, fee);
-    }
+/**
+* getRandomWinner is called to start the process of selecting a random winner
+*/
+function getRandomWinner() private returns (bytes32 requestId) {
+    // LINK is an internal interface for Link token found within the VRFConsumerBase
+    // Here we use the balanceOF method from that interface to make sure that our
+    // contract has enough link so that we can request the VRFCoordinator for randomness
+    require(LINK.balanceOf(address(this)) >= fee, "Not enough LINK");
+    // Make a request to the VRF coordinator.
+    // requestRandomness is a function within the VRFConsumerBase
+    // it starts the process of randomness generation
+    return requestRandomness(keyHash, fee);
+}
 ```
 
 - This function first checks if our contract has Link token before we request for randomness because chainlink contracts request fee in the form of Link token
 - Then this function calls the `requestRandomness` which we inherited from `VRFConsumerBase` and begins the process for random number generation.
 
 ```solidity
-/**
+   /**
     * fulfillRandomness is called by VRFCoordinator when it receives a valid VRF proof.
     * This function is overrided to act upon the random number generated by Chainlink VRF.
     * @param requestId  this ID is unique for the request we sent to the VRF Coordinator
@@ -325,8 +339,9 @@ function startGame(uint8 _maxPlayers, uint256 _entryFee) public onlyOwner {
     }
 ```
 
-- this function was inherited from `VRFConsumerBase`.It is called by `VRFCoordinator` contract after it recieves the randomness from the external world,
-- After recieving the randomness which can be any number in the range of uint256 we decrease its range from `0 to players.length-1` using the mod
+- This function was inherited from `VRFConsumerBase`. It is called by `VRFCoordinator` contract after it recieves the randomness from the external world.
+- After recieving the randomness which can be any number in the range of uint256 we decrease its range from `0 to players.length-1` using the mod operaator
+
 - This selects an index for us and we use that index to retrieve the winner from the players array
 - It send all the ether in the contract to the winner and emits a `GameEnded event`
 
@@ -475,7 +490,7 @@ main()
 
 ![](https://i.imgur.com/HmrQYPs.png)
 
-- Now connect your wallet to the [Mumbai Polygon Scan](https://mumbai.polygonscan.com/) by clicking on `Connect To Web3`
+- Now connect your wallet to the [Mumbai Polygon Scan](https://mumbai.polygonscan.com/) by clicking on `Connect To Web3`. Make sure your account has some mumbai matic tokens
 
 ![](https://i.imgur.com/9hOUYgs.png)
 
@@ -483,20 +498,25 @@ main()
 
 ![](https://i.imgur.com/ULPV0lh.png)
 
-- Now you can make your address join the game
-  Also NOTE: The value I entered here is 10 WEI because that was the value of entry fee that I specified but because join game accepts ether I had to convert 10 WEI into ether. You can also convert your entry fee into ether using [eth converter](https://eth-converter.com/)
+
 
 ![](https://i.imgur.com/Dd9d59J.png)
 
+- Now you can make your address join the game
+  Also NOTE: The value I entered here is 10 WEI because that was the value of entry fee that I specified but because join game accepts ether and not WEI, I had to convert 10 WEI into ether. You can also convert your entry fee into ether using [eth converter](https://eth-converter.com/)
+  
 - Now refresh the page and connect a new wallet which has some matic, so that you can make another player join
-  Note I set my max players to 2 so it will select the winner after I make another address join the game
+  Note: I set my max players to 2 so it will select the winner after I make another address join the game
 
-- If you go to your events tab now and keep refreshing(It takes some time for the `VRFCoordinator` to call the `fullFillRandomness` function because it has to get the data from the external world) at one point you will be able to see an event which says `GameEnded`
-  From the dropdown convert `Hex` to an `Address` for the first value with the GameEnded event because that is the address of the winner
+- If you go to your events tab now and keep refreshing (It takes some time for the `VRFCoordinator` to call the `fullFillRandomness` function because it has to get the data from the external world) at one point you will be able to see an event which says `GameEnded`
+- From the dropdown convert `Hex` to an `Address` for the first value within the GameEnded event because that is the address of the winner
 
-![](https://i.imgur.com/DdQpsHL.png)
 
-Boom its done 🚀 You now know how to place this game. In the next tutorial we will create a UI for this and will learn how to track these events using code itself.
+    ![](https://i.imgur.com/DdQpsHL.png)
+
+Boom its done 🚀 
+
+You now know how to play this game. In the next tutorial we will create a UI for this and will learn how to track these events using code itself.
 
 Lets goo 🚀🚀
 
