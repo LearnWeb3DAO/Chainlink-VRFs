@@ -498,7 +498,7 @@ main()
 
 ![](https://user-images.githubusercontent.com/60979345/159246773-45fdb862-20dd-4992-8323-45add21bb04e.png)
 
-- Then enter some values in the startGame function and click on write button
+- Then enter some values in the startGame function and click on Write button
 
 ![](https://i.imgur.com/ULPV0lh.png)
 
