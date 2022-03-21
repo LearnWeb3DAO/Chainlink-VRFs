@@ -496,7 +496,7 @@ main()
 
 - Once connected, It will look like this
 
-![](https://user-images.githubusercontent.com/60979345/159246165-f1382f66-9d76-4fa5-b270-174f49042729.png)
+![](https://user-images.githubusercontent.com/60979345/159246773-45fdb862-20dd-4992-8323-45add21bb04e.png)
 
 - Then enter some values in the startGame function and click on write button
 
