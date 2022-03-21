@@ -21,8 +21,8 @@ Lets goo 🚀
 
 - Chainlink VRF's are oracles which used to generate random values. 
 - These values are verified using cryptographic proofs.
-- These proofs prove that the results werent tampered or manipulated by oracle operators, users, miners etc.
-- Proofs are published on-chain so that they can be verified
+- These proofs prove that the results weren't tampered or manipulated by oracle operators, users, miners etc.
+- Proofs are published on-chain so that they can be verified.
 - After there verification is successful they are used by smart contracts which requested randomness.
 
 The official Chainlink Docs describe VRFs as:
@@ -109,15 +109,13 @@ npm install --save-dev @nomiclabs/hardhat-etherscan
 npm install --save @chainlink/contracts
 ```
 
-- Now create a new file inside the `contracts` directory called `RandomeWinnerGame.sol` and paste the following lines of code:
+- Now create a new file inside the `contracts` directory called `RandomWinnerGame.sol` and paste the following lines of code:
 
 ```solidity
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/Strings.sol";
 import "@chainlink/contracts/src/v0.8/VRFConsumerBase.sol";
 
 contract RandomWinnerGame is VRFConsumerBase, Ownable {
@@ -486,7 +484,7 @@ main()
 
 - In your terminal they should have printed a link to your contract if not then go to [Mumbai Polygon Scan](https://mumbai.polygonscan.com/) and search for your contract address, it should be verified
 
-- We will now fund this contract with some Chainlink so that we can request randomness, go to [Polygon Faucet](https://faucet.polygon.technology/) and select Link from the dropdon and enter your contract's address
+- We will now fund this contract with some Chainlink so that we can request randomness, go to [Polygon Faucet](https://faucet.polygon.technology/) and select Link from the dropdown and enter your contract's address
 
 ![](https://i.imgur.com/HmrQYPs.png)
 
@@ -494,7 +492,11 @@ main()
 
 ![](https://i.imgur.com/9hOUYgs.png)
 
-- Then enter some values in the startGame function
+- Once connected, It will look like this
+
+![](https://user-images.githubusercontent.com/60979345/159246773-45fdb862-20dd-4992-8323-45add21bb04e.png)
+
+- Then enter some values in the startGame function and click on Write button
 
 ![](https://i.imgur.com/ULPV0lh.png)
 
