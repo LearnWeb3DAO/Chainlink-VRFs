@@ -76,17 +76,17 @@ The official Chainlink Docs describe VRFs as:
   npx hardhat
   ```
 
-  - Select `Create a basic sample project`
+  - Select `Create a Javascript project`
   - Press enter for the already specified `Hardhat Project root`
   - Press enter for the question on if you want to add a `.gitignore`
-  - Press enter for `Do you want to install this sample project's dependencies with npm (@nomiclabs/hardhat-waffle ethereum-waffle chai @nomiclabs/hardhat-ethers ethers)?`
+  - Press enter for `Do you want to install this sample project's dependencies with npm (@nomicfoundation/hardhat-toolbox)?`
 
 Now you have a hardhat project ready to go!
 
 If you are not on mac, please do this extra step and install these libraries as well :)
 
 ```bash
-npm install --save-dev @nomiclabs/hardhat-waffle ethereum-waffle chai @nomiclabs/hardhat-ethers ethers
+npm install --save-dev @nomicfoundation/hardhat-toolbox
 ```
 
 and press `enter` for all the questions.
@@ -368,10 +368,10 @@ function getRandomWinner() private returns (bytes32 requestId) {
     POLYGONSCAN_KEY="add-the-polygonscan-api-token-here"
   ```
 
-- Now open the hardhat.config.js file, we will add the `mumbai` network here so that we can deploy our contract to mumbai and an `etherscan` object so that we can verify our contract on `polygonscan`. Replace all the lines in the `hardhart.config.js` file with the given below lines.
+- Now open the hardhat.config.js file, we will add the `mumbai` network here so that we can deploy our contract to mumbai and an `etherscan` object so that we can verify our contract on `polygonscan`. Replace all the lines in the `hardhat.config.js` file with the given below lines.
 
   ```javascript
-  require("@nomiclabs/hardhat-waffle");
+  require("@nomicfoundation/hardhat-toolbox");
   require("dotenv").config({ path: ".env" });
   require("@nomiclabs/hardhat-etherscan");
 
@@ -382,7 +382,7 @@ function getRandomWinner() private returns (bytes32 requestId) {
   const POLYGONSCAN_KEY = process.env.POLYGONSCAN_KEY;
 
   module.exports = {
-    solidity: "0.8.4",
+    solidity: "0.8.9",
     networks: {
       mumbai: {
         url: ALCHEMY_API_KEY_URL,
@@ -412,7 +412,7 @@ module.exports = { LINK_TOKEN, VRF_COORDINATOR, KEY_HASH, FEE };
 
 The values we got for this are from [here](https://docs.chain.link/docs/vrf-contracts/v1/#polygon-matic-mumbai-testnet) and are already provided to us by Chainlink
 
-- Lets deploy the contract to `mumbai` network. Create a new file named `deploy.js` under the `scripts` folder.
+- Lets deploy the contract to `mumbai` network. Create a new file, or replace the default existing one, named `deploy.js` under the `scripts` folder.
 
 ```javascript
 const { ethers } = require("hardhat");
