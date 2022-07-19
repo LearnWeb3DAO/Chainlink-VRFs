@@ -13,9 +13,9 @@ So we can use some web2 technologies to generate the randomness and then use the
 - They act as bridges between blockchains and the external world.
 - However it is important to note that the blockchain oracle is not itself the data source but its job is to query, verify and authenticate the outside data and then futher pass it to the smart contract.
 
-Today we will learn about one of oracles named Chainlink VRF's
+Today we will learn about one of oracles named Chainlink VRFs
 
-Lets goo 🚀
+Let's goo 🚀
 
 ## Intro
 
@@ -23,7 +23,7 @@ Lets goo 🚀
 - These values are verified using cryptographic proofs.
 - These proofs prove that the results weren't tampered or manipulated by oracle operators, users, miners etc.
 - Proofs are published on-chain so that they can be verified.
-- After there verification is successful they are used by smart contracts which requested randomness.
+- After their verification is successful they are used by smart contracts which requested randomness.
 
 The official Chainlink Docs describe VRFs as:
 
@@ -42,7 +42,7 @@ The official Chainlink Docs describe VRFs as:
 - If you look at the diagram you can understand the flow, `RandomGameWinner` contract will inherit the `VRFConsumerBase` contract and will call the `requestRandomness` function within the `VRFConsumerBase`. 
 - On calling that function the request to randomness starts and the `VRFConsumerBase` further calls the `VRFCoordinator` contract which is reponsible for getting the randomness back from the external world.
 - After the `VRFCoordinator` has the randomness it calls the `fullFillRandomness` function within the `VRFConsumerBase` which further then selects the winner.
-- **Note the important part is that eventhough you called the `requestRandomness` function you get the randomness back in the `fullFillRandomness` function**
+- **Note the important part is that even though you called the `requestRandomness` function you get the randomness back in the `fullFillRandomness` function**
 
 ## Prerequisites
 
@@ -97,7 +97,7 @@ and press `enter` for all the questions.
   npm install @openzeppelin/contracts
   ```
 
-- We will also be verifying our contracts, so lets install hardhat etherscan library
+- We will also be verifying our contracts, so let's install hardhat etherscan library
 
 ```bash
 npm install --save-dev @nomiclabs/hardhat-etherscan
@@ -337,13 +337,13 @@ function getRandomWinner() private returns (bytes32 requestId) {
     }
 ```
 
-- This function was inherited from `VRFConsumerBase`. It is called by `VRFCoordinator` contract after it recieves the randomness from the external world.
-- After recieving the randomness which can be any number in the range of uint256 we decrease its range from `0 to players.length-1` using the mod operaator
+- This function was inherited from `VRFConsumerBase`. It is called by `VRFCoordinator` contract after it receives the randomness from the external world.
+- After receiving the randomness which can be any number in the range of uint256 we decrease its range from `0 to players.length-1` using the mod operaator
 
 - This selects an index for us and we use that index to retrieve the winner from the players array
-- It send all the ether in the contract to the winner and emits a `GameEnded event`
+- It sends all the ether in the contract to the winner and emits a `GameEnded event`
 
-- Now we would install `dotenv` package to be able to import the env file and use it in our config. Open up a terminal pointing at`hardhat-tutorial` directory and execute this command
+- Now we will install `dotenv` package to be able to import the env file and use it in our config. Open up a terminal pointing at`hardhat-tutorial` directory and execute this command
 
   ```bash
   npm install dotenv
@@ -412,7 +412,7 @@ module.exports = { LINK_TOKEN, VRF_COORDINATOR, KEY_HASH, FEE };
 
 The values we got for this are from [here](https://docs.chain.link/docs/vrf-contracts/v1/#polygon-matic-mumbai-testnet) and are already provided to us by Chainlink
 
-- Lets deploy the contract to `mumbai` network. Create a new file, or replace the default existing one, named `deploy.js` under the `scripts` folder.
+- Let's deploy the contract to `mumbai` network. Create a new file, or replace the default existing one, named `deploy.js` under the `scripts` folder.
 
 ```javascript
 const { ethers } = require("hardhat");
@@ -480,7 +480,7 @@ main()
 
 - It should have printed a link to mumbai polygonscan, your contract is now verified. Click on polygonscan link and interact with your contract there.
 
-- Lets play the game on polygonscan now
+- Let's play the game on polygonscan now
 
 - In your terminal they should have printed a link to your contract if not then go to [Mumbai Polygon Scan](https://mumbai.polygonscan.com/) and search for your contract address, it should be verified
 
@@ -520,6 +520,6 @@ Boom its done 🚀
 
 You now know how to play this game. In the next tutorial we will create a UI for this and will learn how to track these events using code itself.
 
-Lets goo 🚀🚀
+Let's goo 🚀🚀
 
 ---
