@@ -23,7 +23,7 @@ Lets goo 🚀
 - These values are verified using cryptographic proofs.
 - These proofs prove that the results weren't tampered or manipulated by oracle operators, users, miners etc.
 - Proofs are published on-chain so that they can be verified.
-- After there verification is successful they are used by smart contracts which requested randomness.
+- After their verification is successful they are used by smart contracts which requested randomness.
 
 The official Chainlink Docs describe VRFs as:
 
